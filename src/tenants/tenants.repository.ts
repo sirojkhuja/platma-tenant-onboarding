@@ -12,6 +12,13 @@ export type CreateTenantRow = {
   status?: TenantStatus;
 };
 
+export type UpdateTenantRow = Partial<{
+  status: TenantStatus;
+  keycloakClientId: string | null;
+  keycloakClientInternalId: string | null;
+  keycloakAdminUserId: string | null;
+}>;
+
 @Injectable()
 export class TenantsRepository {
   constructor(
@@ -40,5 +47,9 @@ export class TenantsRepository {
 
   async setStatus(id: string, status: TenantStatus): Promise<void> {
     await this.repo.update({ id }, { status });
+  }
+
+  async update(id: string, patch: UpdateTenantRow): Promise<void> {
+    await this.repo.update({ id }, patch);
   }
 }

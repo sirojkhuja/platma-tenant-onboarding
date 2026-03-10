@@ -6,8 +6,6 @@ import { ConfigModule } from "@nestjs/config";
 import { validateEnv } from "./config/env";
 import { DatabaseModule } from "./database/database.module";
 import { HealthController } from "./health/health.controller";
-import { KeycloakModule } from "./keycloak/keycloak.module";
-import { ManifestsModule } from "./manifests/manifests.module";
 import { TenantsModule } from "./tenants/tenants.module";
 
 @Module({
@@ -18,8 +16,6 @@ import { TenantsModule } from "./tenants/tenants.module";
     }),
     DatabaseModule,
     TenantsModule,
-    ManifestsModule,
-    KeycloakModule,
   ],
   controllers: [HealthController],
 })

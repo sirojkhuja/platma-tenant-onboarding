@@ -50,7 +50,7 @@ Status values: `TODO`, `IN_PROGRESS`, `DONE`
 5. Task: Keycloak module (token, admin REST calls, ensure client/user, disable client, timeouts/retries)
    Status: DONE
 6. Task: Tenants module (POST/DELETE endpoints, orchestration, error mapping, idempotent delete)
-   Status: TODO
+   Status: DONE
 7. Task: Local dev environment (docker-compose for Postgres + Keycloak, realm import file, docs update if needed)
    Status: TODO
 8. Task: Integration tests (create -> verify -> delete against Postgres + Keycloak + YAML assertions)
