@@ -22,6 +22,7 @@ These decisions are made up front to keep momentum and avoid "architecture churn
 - ORM: TypeORM + Postgres (`pg` driver).
   - IDs: app-generated UUIDs (no DB extension dependency).
   - DB schema: `synchronize=true` in dev/test for this exercise. For production, add migrations (documented in docs).
+  - Unit/e2e tests default to SQL.js in-memory for `NODE_ENV=test` unless `DATABASE_DRIVER=postgres`.
 - Tenant lifecycle: `status` enum (`PROVISIONING`, `ACTIVE`, `DEPROVISIONING`, `INACTIVE`, `FAILED`).
 - Delete semantics: idempotent (`DELETE` on an already-inactive tenant returns success with current state).
 - Keycloak auth (dev): password grant using the built-in Keycloak admin user.
@@ -33,7 +34,8 @@ These decisions are made up front to keep momentum and avoid "architecture churn
   - Default output mode: include YAML in HTTP response.
   - Optional output mode: also write to disk (`MANIFEST_OUTPUT_MODE=both|disk`).
   - Node-RED image: pinned tag (not `latest`).
-- Tests: Jest + `@nestjs/testing` + SuperTest e2e tests against real Postgres + Keycloak (docker-compose).
+- Tests: Jest + `@nestjs/testing` + Fastify `app.inject()` e2e/integration tests (no TCP bind).
+  - Integration uses real Postgres + Keycloak via docker-compose.
 
 ## Task List
 
@@ -58,4 +60,4 @@ Status values: `TODO`, `IN_PROGRESS`, `DONE`
 9. Task: Lint/format/test hardening (eslint + prettier + jest config, run full suite cleanly)
    Status: DONE
 10. Task: Final verification + polish (manual curl flow, docs aligned, progress 100%)
-    Status: TODO
+    Status: DONE

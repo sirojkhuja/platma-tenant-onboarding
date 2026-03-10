@@ -12,7 +12,7 @@ Docs live in [docs/README.md](./docs/README.md).
 1. Start dependencies:
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 2. Configure env:
@@ -38,9 +38,6 @@ curl -X POST http://localhost:3000/tenants \
 
 ## Tests
 
-Integration tests expect Postgres + Keycloak running locally:
-
-```bash
-docker-compose up -d
-npm test
-```
+- Unit/e2e (no external deps): `npm test`
+- Integration (requires Postgres + Keycloak): `docker compose up -d && npm run test:integration`
+- Full local check: `npm run verify:integration`
