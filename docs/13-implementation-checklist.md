@@ -56,6 +56,6 @@ Status values: `TODO`, `IN_PROGRESS`, `DONE`
 8. Task: Integration tests (create -> verify -> delete against Postgres + Keycloak + YAML assertions)
    Status: DONE
 9. Task: Lint/format/test hardening (eslint + prettier + jest config, run full suite cleanly)
-   Status: TODO
+   Status: DONE
 10. Task: Final verification + polish (manual curl flow, docs aligned, progress 100%)
     Status: TODO

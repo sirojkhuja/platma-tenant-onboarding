@@ -13,9 +13,13 @@
     "start:dev": "ts-node-dev --respawn --transpile-only src/main.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "format": "prettier -w .",
+    "format:check": "prettier -c .",
     "test": "jest",
-    "test:integration": "DATABASE_DRIVER=postgres NODE_ENV=test jest --config jest.integration.config.cjs"
+    "test:integration": "DATABASE_DRIVER=postgres NODE_ENV=test jest --config jest.integration.config.cjs",
+    "verify": "npm run format:check && npm run lint && npm run typecheck && npm test",
+    "verify:integration": "npm run verify && npm run test:integration"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.0",

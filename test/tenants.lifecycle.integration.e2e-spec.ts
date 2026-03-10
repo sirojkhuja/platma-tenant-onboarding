@@ -1,6 +1,6 @@
 import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
 import { Test } from "@nestjs/testing";
-import { Client as PgClient } from "pg";
+import { Pool } from "pg";
 
 import { AppModule } from "../src/app.module";
 import { KeycloakProvisioningService } from "../src/keycloak/keycloak.service";
@@ -24,15 +24,14 @@ async function waitForPostgresReady() {
 
   const deadline = Date.now() + 60_000;
   while (Date.now() < deadline) {
-    const client = new PgClient({ host, port, user, password, database });
+    const pool = new Pool({ host, port, user, password, database, max: 1 });
     try {
-      await client.connect();
-      await client.query("select 1");
-      await client.end();
+      await pool.query("select 1");
+      await pool.end();
       return;
     } catch {
       try {
-        await client.end();
+        await pool.end();
       } catch {
         // ignore
       }
@@ -123,7 +122,7 @@ describe("tenants lifecycle (integration)", () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    await app?.close();
   });
 
   it("create -> verify -> delete", async () => {
