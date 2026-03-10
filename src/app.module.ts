@@ -1,8 +1,12 @@
+import "reflect-metadata";
+
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 
 import { validateEnv } from "./config/env";
+import { DatabaseModule } from "./database/database.module";
 import { HealthController } from "./health/health.controller";
+import { TenantsModule } from "./tenants/tenants.module";
 
 @Module({
   imports: [
@@ -10,6 +14,8 @@ import { HealthController } from "./health/health.controller";
       isGlobal: true,
       validate: validateEnv,
     }),
+    DatabaseModule,
+    TenantsModule,
   ],
   controllers: [HealthController],
 })

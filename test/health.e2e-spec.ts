@@ -16,7 +16,7 @@ describe("health (e2e)", () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    await app?.close();
   });
 
   it("GET /health", async () => {
