@@ -46,7 +46,7 @@ Status values: `TODO`, `IN_PROGRESS`, `DONE`
 3. Task: Database layer (TypeORM config, Tenant entity, repository/service, status enum, uniqueness on slug)
    Status: DONE
 4. Task: Manifests module (slugify, deterministic names, YAML generation, disk output option)
-   Status: TODO
+   Status: DONE
 5. Task: Keycloak module (token, admin REST calls, ensure client/user, disable client, timeouts/retries)
    Status: TODO
 6. Task: Tenants module (POST/DELETE endpoints, orchestration, error mapping, idempotent delete)
