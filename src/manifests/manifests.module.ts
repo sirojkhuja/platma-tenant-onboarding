@@ -7,4 +7,3 @@ import { ManifestsService } from "./manifests.service";
   exports: [ManifestsService],
 })
 export class ManifestsModule {}
-

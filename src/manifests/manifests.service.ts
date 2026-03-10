@@ -112,4 +112,3 @@ export class ManifestsService {
     return { resourceName, yaml };
   }
 }
-

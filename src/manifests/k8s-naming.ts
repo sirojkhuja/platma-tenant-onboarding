@@ -19,4 +19,3 @@ export function shortIdFromUuid(uuid: string): string {
 export function noderedResourceName(tenantSlug: string, tenantId: string): string {
   return `nodered-${tenantSlug}-${shortIdFromUuid(tenantId)}`;
 }
-
