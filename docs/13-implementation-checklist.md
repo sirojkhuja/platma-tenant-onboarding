@@ -52,7 +52,7 @@ Status values: `TODO`, `IN_PROGRESS`, `DONE`
 6. Task: Tenants module (POST/DELETE endpoints, orchestration, error mapping, idempotent delete)
    Status: DONE
 7. Task: Local dev environment (docker-compose for Postgres + Keycloak, realm import file, docs update if needed)
-   Status: TODO
+   Status: DONE
 8. Task: Integration tests (create -> verify -> delete against Postgres + Keycloak + YAML assertions)
    Status: TODO
 9. Task: Lint/format/test hardening (eslint + prettier + jest config, run full suite cleanly)
