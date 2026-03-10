@@ -17,7 +17,7 @@ Workflow per task (required):
 
 These decisions are made up front to keep momentum and avoid "architecture churn":
 
-- Runtime/framework: NestJS + Express, TypeScript.
+- Runtime/framework: NestJS + Fastify, TypeScript.
 - Config: `@nestjs/config` + zod validation (fail fast).
 - ORM: TypeORM + Postgres (`pg` driver).
   - IDs: app-generated UUIDs (no DB extension dependency).
@@ -42,7 +42,7 @@ Status values: `TODO`, `IN_PROGRESS`, `DONE`
 1. Task: Repo bootstrap (root README, `.gitignore`, tooling scripts, base CI-ish scripts in `package.json`)
    Status: DONE
 2. Task: NestJS app skeleton (ConfigModule + zod validation, global pipes, request id + logging)
-   Status: TODO
+   Status: DONE
 3. Task: Database layer (TypeORM config, Tenant entity, repository/service, status enum, uniqueness on slug)
    Status: TODO
 4. Task: Manifests module (slugify, deterministic names, YAML generation, disk output option)
