@@ -9,8 +9,9 @@ import { TypeOrmModule } from "@nestjs/typeorm";
       useFactory: (config: ConfigService) => {
         const nodeEnv = config.get<string>("NODE_ENV") ?? "development";
         const isTest = nodeEnv === "test";
+        const dbDriver = config.get<string>("DATABASE_DRIVER");
 
-        if (isTest) {
+        if (isTest && dbDriver !== "postgres") {
           return {
             type: "sqljs",
             location: ":memory:",

@@ -10,6 +10,7 @@ export const envSchema = z
     PORT: z.coerce.number().int().positive().default(3000),
 
     // DB
+    DATABASE_DRIVER: z.enum(["postgres", "sqljs"]).optional(),
     DATABASE_HOST: z.string().default("localhost"),
     DATABASE_PORT: z.coerce.number().int().positive().default(5432),
     DATABASE_USERNAME: z.string().default("platma"),

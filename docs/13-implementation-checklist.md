@@ -54,7 +54,7 @@ Status values: `TODO`, `IN_PROGRESS`, `DONE`
 7. Task: Local dev environment (docker-compose for Postgres + Keycloak, realm import file, docs update if needed)
    Status: DONE
 8. Task: Integration tests (create -> verify -> delete against Postgres + Keycloak + YAML assertions)
-   Status: TODO
+   Status: DONE
 9. Task: Lint/format/test hardening (eslint + prettier + jest config, run full suite cleanly)
    Status: TODO
 10. Task: Final verification + polish (manual curl flow, docs aligned, progress 100%)
