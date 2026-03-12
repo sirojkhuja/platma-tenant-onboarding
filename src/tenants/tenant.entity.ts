@@ -41,6 +41,21 @@ export class TenantEntity {
   @Column({ type: "text", nullable: true })
   keycloakAdminUserId!: string | null;
 
+  @Column({ type: "text", nullable: true })
+  k8sNamespace!: string | null;
+
+  @Column({ type: "text", nullable: true })
+  k8sResourceName!: string | null;
+
+  @Column({ type: "text", nullable: true })
+  nodeRedAdminUsername!: string | null;
+
+  @Column({ type: "text", nullable: true })
+  nodeRedIngressHost!: string | null;
+
+  @Column({ type: "text", nullable: true })
+  nodeRedServiceName!: string | null;
+
   @CreateDateColumn()
   createdAt!: Date;
 

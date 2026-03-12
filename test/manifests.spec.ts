@@ -27,12 +27,19 @@ describe("manifests", () => {
 
     const tenant = {
       id: "b4b1e8b6-4d71-4e1d-a28c-2d4a0f6f1c9b",
+      nodeRedAdminPasswordHash: "$2b$10$abcdefghijklmnopqrstuv",
+      nodeRedAdminUsername: "admin",
       slug: "acme-corp",
     };
 
     const res = await svc.generateCreateManifest(tenant);
 
     expect(res.resourceName).toBe("nodered-acme-corp-b4b1e8b6");
+    expect(res.serviceName).toBe("nodered-acme-corp-b4b1e8b6");
+    expect(res.namespace).toBe("default");
+    expect(res.yaml).toContain("kind: Secret");
+    expect(res.yaml).toContain("kind: ConfigMap");
+    expect(res.yaml).toContain("kind: PersistentVolumeClaim");
     expect(res.yaml).toContain("kind: Deployment");
     expect(res.yaml).toContain("kind: Service");
     expect(res.yaml).toContain("name: nodered-acme-corp-b4b1e8b6");

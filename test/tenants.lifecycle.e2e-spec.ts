@@ -17,6 +17,9 @@ describe("tenants lifecycle (e2e)", () => {
   };
 
   beforeAll(async () => {
+    process.env.K8S_DEPLOY_MODE ||= "manifest";
+    process.env.NODE_RED_PASSWORD_SEED ||= "dev-only-change-me-node-red-password-seed";
+
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     })
@@ -46,11 +49,22 @@ describe("tenants lifecycle (e2e)", () => {
     expect(created.slug).toBe("acme-corp");
     expect(created.status).toBe("ACTIVE");
     expect(created.manifests?.createYaml).toContain("kind: Deployment");
+    expect(created.nodeRed?.namespace).toBe("default");
+    expect(created.nodeRed?.serviceName).toContain("nodered-acme-corp-");
+    expect(created.nodeRed?.adminUsername).toBe("admin");
+    expect(created.nodeRed?.adminPassword).toBeTruthy();
 
     const tenantId = created.id as string;
     const row = await repo.findById(tenantId);
     expect(row?.status).toBe(TenantStatus.ACTIVE);
     expect(row?.keycloakClientId).toBe(created.keycloak.clientId);
+    expect(row?.nodeRedAdminUsername).toBe("admin");
+
+    const getRes = await app.inject({ method: "GET", url: `/tenants/${tenantId}` });
+    expect(getRes.statusCode).toBe(200);
+    const fetched = getRes.json() as any;
+    expect(fetched.nodeRed?.adminUsername).toBe("admin");
+    expect(fetched.nodeRed?.serviceName).toBe(created.nodeRed.serviceName);
 
     const deleteRes = await app.inject({ method: "DELETE", url: `/tenants/${tenantId}` });
     expect(deleteRes.statusCode).toBe(200);
@@ -58,6 +72,7 @@ describe("tenants lifecycle (e2e)", () => {
     const deleted = deleteRes.json() as any;
     expect(deleted.status).toBe("INACTIVE");
     expect(deleted.manifests?.deleteYaml).toContain("kind: Service");
+    expect(deleted.nodeRed?.deploymentMode).toBe("manifest");
 
     const row2 = await repo.findById(tenantId);
     expect(row2?.status).toBe(TenantStatus.INACTIVE);
@@ -82,6 +97,15 @@ describe("tenants lifecycle (e2e)", () => {
   it("returns 404 for unknown tenant delete", async () => {
     const res = await app.inject({
       method: "DELETE",
+      url: "/tenants/00000000-0000-4000-8000-000000000000",
+    });
+
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("returns 404 for unknown tenant get", async () => {
+    const res = await app.inject({
+      method: "GET",
       url: "/tenants/00000000-0000-4000-8000-000000000000",
     });
 

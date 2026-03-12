@@ -14,9 +14,14 @@ export type CreateTenantRow = {
 
 export type UpdateTenantRow = Partial<{
   status: TenantStatus;
+  k8sNamespace: string | null;
+  k8sResourceName: string | null;
   keycloakClientId: string | null;
   keycloakClientInternalId: string | null;
   keycloakAdminUserId: string | null;
+  nodeRedAdminUsername: string | null;
+  nodeRedIngressHost: string | null;
+  nodeRedServiceName: string | null;
 }>;
 
 @Injectable()

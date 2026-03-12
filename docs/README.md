@@ -4,10 +4,11 @@ This documentation set describes how to implement and operate the NestJS "tenant
 
 The core behavior:
 
-- `POST /tenants`: create a tenant record in Postgres, provision Keycloak (client + admin user), and generate Kubernetes YAML (Deployment + Service) for a per-tenant Node-RED instance.
-- `DELETE /tenants/:id`: mark tenant inactive in Postgres, disable the Keycloak client, and generate the corresponding "delete manifest" (resources to delete).
+- `POST /tenants`: create a tenant record in Postgres, provision Keycloak (client + admin user), generate Kubernetes YAML, and optionally apply a live per-tenant Node-RED instance to Kubernetes.
+- `GET /tenants/:id`: inspect the stored tenant state and runtime metadata.
+- `DELETE /tenants/:id`: mark tenant inactive in Postgres, disable the Keycloak client, and delete the corresponding Kubernetes resources when apply mode is enabled.
 
-No manifests are actually applied to a live Kubernetes cluster in this task.
+Kubernetes apply/delete is now optional and controlled by configuration (`K8S_DEPLOY_MODE=manifest|apply`).
 
 ## Contents
 
@@ -24,3 +25,4 @@ No manifests are actually applied to a live Kubernetes cluster in this task.
 - [11-production-readiness.md](./11-production-readiness.md): how to extend to apply manifests, security/ops, scaling, CI/CD.
 - [12-senior-discussion.md](./12-senior-discussion.md): expected discussion points + senior-level Q&A + practical examples.
 - [13-implementation-checklist.md](./13-implementation-checklist.md): pragmatic build checklist (what to implement, in what order).
+- [14-node-red-runtime.md](./14-node-red-runtime.md): how the live Node-RED runtime mode works, what gets deployed, and how to test it locally.

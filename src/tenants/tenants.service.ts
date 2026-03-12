@@ -6,12 +6,15 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 
+import { KubernetesDeploymentService } from "../kubernetes/kubernetes.service";
 import { KeycloakHttpError } from "../keycloak/keycloak-admin.client";
 import { KeycloakProvisioningService } from "../keycloak/keycloak.service";
+import { ManifestResult, ManifestsService } from "../manifests/manifests.service";
 import { toTenantSlug, shortIdFromUuid } from "../manifests/k8s-naming";
-import { ManifestsService } from "../manifests/manifests.service";
+import { NodeRedCredentialsService } from "../nodered/node-red-credentials.service";
 
 import { CreateTenantDto } from "./dto/create-tenant.dto";
+import { TenantEntity } from "./tenant.entity";
 import { TenantStatus } from "./tenant-status";
 import { TenantsRepository } from "./tenants.repository";
 
@@ -45,6 +48,8 @@ function toUpstreamException(err: unknown): BadGatewayException {
 @Injectable()
 export class TenantsService {
   constructor(
+    private readonly kubernetes: KubernetesDeploymentService,
+    private readonly nodeRedCredentials: NodeRedCredentialsService,
     private readonly repo: TenantsRepository,
     private readonly keycloak: KeycloakProvisioningService,
     private readonly manifests: ManifestsService,
@@ -70,6 +75,8 @@ export class TenantsService {
 
     const clientId = `tenant-${slug}-${shortIdFromUuid(tenant.id)}`;
     let clientInternalId: string | undefined;
+    let createManifest: ManifestResult | undefined;
+    const nodeRedCredentials = await this.nodeRedCredentials.getBootstrapCredentials(tenant.id);
 
     try {
       const client = await this.keycloak.ensureClient(clientId);
@@ -77,15 +84,26 @@ export class TenantsService {
 
       const user = await this.keycloak.ensureUser(dto.adminEmail, dto.adminEmail);
 
-      await this.repo.update(tenant.id, {
-        keycloakClientId: client.clientId,
-        keycloakClientInternalId: client.internalId,
-        keycloakAdminUserId: user.userId,
+      createManifest = await this.manifests.generateCreateManifest({
+        id: tenant.id,
+        slug,
+        nodeRedAdminPasswordHash: nodeRedCredentials.passwordHash,
+        nodeRedAdminUsername: nodeRedCredentials.username,
       });
 
-      const createManifest = await this.manifests.generateCreateManifest({ id: tenant.id, slug });
+      const deployResult = await this.kubernetes.applyManifest(createManifest);
 
-      await this.repo.update(tenant.id, { status: TenantStatus.ACTIVE });
+      await this.repo.update(tenant.id, {
+        k8sNamespace: createManifest.namespace,
+        k8sResourceName: createManifest.resourceName,
+        keycloakAdminUserId: user.userId,
+        keycloakClientId: client.clientId,
+        keycloakClientInternalId: client.internalId,
+        nodeRedAdminUsername: nodeRedCredentials.username,
+        nodeRedIngressHost: createManifest.ingressHost ?? null,
+        nodeRedServiceName: createManifest.serviceName,
+        status: TenantStatus.ACTIVE,
+      });
 
       return {
         id: tenant.id,
@@ -101,8 +119,27 @@ export class TenantsService {
           createYaml: createManifest.yaml || undefined,
           createPath: createManifest.filePath,
         },
+        nodeRed: {
+          adminPassword: nodeRedCredentials.password,
+          adminUsername: nodeRedCredentials.username,
+          applied: deployResult.applied,
+          deploymentMode: deployResult.mode,
+          editorUrl: createManifest.editorUrl,
+          ingressHost: createManifest.ingressHost,
+          namespace: createManifest.namespace,
+          resourceName: createManifest.resourceName,
+          serviceName: createManifest.serviceName,
+        },
       };
     } catch (err) {
+      if (createManifest) {
+        try {
+          await this.kubernetes.deleteManifest(createManifest);
+        } catch {
+          // ignore
+        }
+      }
+
       // Best-effort compensation: disable client if it was created/enabled.
       try {
         await this.keycloak.disableClient(clientId, clientInternalId);
@@ -124,6 +161,13 @@ export class TenantsService {
     }
   }
 
+  async getTenant(id: string) {
+    const tenant = await this.repo.findById(id);
+    if (!tenant) throw new NotFoundException({ message: "Tenant not found" });
+
+    return this.toTenantView(tenant);
+  }
+
   async deleteTenant(id: string) {
     const tenant = await this.repo.findById(id);
     if (!tenant) throw new NotFoundException({ message: "Tenant not found" });
@@ -131,6 +175,14 @@ export class TenantsService {
     if (tenant.status !== TenantStatus.INACTIVE) {
       await this.repo.update(id, { status: TenantStatus.DEPROVISIONING });
     }
+
+    const nodeRedCredentials = await this.nodeRedCredentials.getBootstrapCredentials(tenant.id);
+    const deleteManifest = await this.manifests.generateDeleteManifest({
+      id: tenant.id,
+      slug: tenant.slug,
+      nodeRedAdminPasswordHash: nodeRedCredentials.passwordHash,
+      nodeRedAdminUsername: tenant.nodeRedAdminUsername ?? nodeRedCredentials.username,
+    });
 
     try {
       if (tenant.keycloakClientId) {
@@ -143,10 +195,7 @@ export class TenantsService {
       throw toUpstreamException(err);
     }
 
-    const deleteManifest = await this.manifests.generateDeleteManifest({
-      id: tenant.id,
-      slug: tenant.slug,
-    });
+    const deleteResult = await this.kubernetes.deleteManifest(deleteManifest);
     await this.repo.update(id, { status: TenantStatus.INACTIVE });
 
     return {
@@ -157,6 +206,42 @@ export class TenantsService {
         deleteYaml: deleteManifest.yaml || undefined,
         deletePath: deleteManifest.filePath,
       },
+      nodeRed: {
+        applied: deleteResult.applied,
+        deploymentMode: deleteResult.mode,
+        editorUrl: deleteManifest.editorUrl,
+        ingressHost: deleteManifest.ingressHost,
+        namespace: deleteManifest.namespace,
+        resourceName: deleteManifest.resourceName,
+        serviceName: deleteManifest.serviceName,
+      },
+    };
+  }
+
+  private toTenantView(tenant: TenantEntity) {
+    const editorUrl = tenant.nodeRedIngressHost ? `http://${tenant.nodeRedIngressHost}` : undefined;
+
+    return {
+      adminEmail: tenant.adminEmail,
+      createdAt: tenant.createdAt,
+      id: tenant.id,
+      keycloak: {
+        adminUserId: tenant.keycloakAdminUserId,
+        clientId: tenant.keycloakClientId,
+        clientInternalId: tenant.keycloakClientInternalId,
+      },
+      name: tenant.name,
+      nodeRed: {
+        adminUsername: tenant.nodeRedAdminUsername,
+        editorUrl,
+        ingressHost: tenant.nodeRedIngressHost,
+        namespace: tenant.k8sNamespace,
+        resourceName: tenant.k8sResourceName,
+        serviceName: tenant.nodeRedServiceName,
+      },
+      slug: tenant.slug,
+      status: tenant.status,
+      updatedAt: tenant.updatedAt,
     };
   }
 }

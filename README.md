@@ -2,12 +2,13 @@
 
 Tenant lifecycle service:
 
-- `POST /tenants`: persist tenant in PostgreSQL, provision Keycloak (client + admin user), and generate Kubernetes YAML (Deployment + Service) for a per-tenant Node-RED instance.
-- `DELETE /tenants/:id`: mark tenant inactive, disable Keycloak client, and generate corresponding "delete" YAML.
+- `POST /tenants`: persist tenant in PostgreSQL, provision Keycloak (client + admin user), generate Kubernetes YAML, and optionally apply a real per-tenant Node-RED workload to Kubernetes.
+- `GET /tenants/:id`: inspect stored tenant, Keycloak, and Node-RED runtime metadata.
+- `DELETE /tenants/:id`: mark tenant inactive, disable the Keycloak client, generate the corresponding delete YAML, and optionally delete the live Kubernetes resources.
 
 Docs live in [docs/README.md](./docs/README.md).
 
-## Quickstart (Local)
+## Quickstart (Manifest Mode)
 
 1. Start dependencies:
 
@@ -36,8 +37,60 @@ curl -X POST http://localhost:3000/tenants \
   -d '{"tenantName":"Acme Corp","adminEmail":"admin@acme.test"}'
 ```
 
+This default mode only generates manifests and stores runtime metadata. It does not apply anything to Kubernetes.
+
+## Quickstart (Live Node-RED on Kubernetes)
+
+Prerequisites:
+
+- Docker
+- `kubectl`
+- `kind`
+
+1. Start Postgres and Keycloak:
+
+```bash
+npm run dev:deps:up
+```
+
+2. Create a local kind cluster:
+
+```bash
+npm run dev:k8s:up
+```
+
+3. Configure env:
+
+```bash
+cp .env.example .env
+```
+
+Set at least:
+
+```bash
+K8S_DEPLOY_MODE=apply
+K8S_KUBECONFIG_PATH=$HOME/.kube/config
+NODE_RED_PASSWORD_SEED=replace-this-with-a-real-secret
+```
+
+4. Start the API:
+
+```bash
+npm install
+npm run start:dev
+```
+
+5. Run the end-to-end smoke flow:
+
+```bash
+PATH="$HOME/.local/bin:$PATH" npm run smoke:runtime
+```
+
+The smoke script creates a tenant, waits for Node-RED to roll out, verifies the editor page and protected `/flows` endpoint, deletes the tenant, and confirms cleanup.
+
 ## Tests
 
 - Unit/e2e (no external deps): `npm test`
 - Integration (requires Postgres + Keycloak): `docker compose up -d && npm run test:integration`
+- End-to-end runtime smoke (requires Postgres + Keycloak + kind cluster + running API in `K8S_DEPLOY_MODE=apply`): `npm run smoke:runtime`
 - Full local check: `npm run verify:integration`

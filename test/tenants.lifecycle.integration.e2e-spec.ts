@@ -106,6 +106,8 @@ describe("tenants lifecycle (integration)", () => {
     process.env.KEYCLOAK_ADMIN_PASSWORD ||= "admin";
     process.env.KEYCLOAK_HTTP_TIMEOUT_MS ||= "15000";
     process.env.KEYCLOAK_HTTP_RETRY_COUNT ||= "2";
+    process.env.K8S_DEPLOY_MODE ||= "manifest";
+    process.env.NODE_RED_PASSWORD_SEED ||= "dev-only-change-me-node-red-password-seed";
 
     await waitForPostgresReady();
     await waitForKeycloakReady();
@@ -142,9 +144,13 @@ describe("tenants lifecycle (integration)", () => {
     const clientId = created.keycloak.clientId as string;
 
     expect(created.manifests?.createYaml).toContain("kind: Deployment");
+    expect(created.manifests?.createYaml).toContain("kind: PersistentVolumeClaim");
+    expect(created.nodeRed?.deploymentMode).toBe("manifest");
+    expect(created.nodeRed?.adminPassword).toBeTruthy();
 
     const row = await repo.findById(tenantId);
     expect(row?.status).toBe(TenantStatus.ACTIVE);
+    expect(row?.nodeRedServiceName).toBe(created.nodeRed.serviceName);
 
     const client = await keycloak.findClientByClientId(clientId);
     expect(client).not.toBeNull();
@@ -160,6 +166,7 @@ describe("tenants lifecycle (integration)", () => {
     const deleted = deleteRes.json() as any;
     expect(deleted.status).toBe("INACTIVE");
     expect(deleted.manifests?.deleteYaml).toContain("kind: Service");
+    expect(deleted.nodeRed?.deploymentMode).toBe("manifest");
 
     const row2 = await repo.findById(tenantId);
     expect(row2?.status).toBe(TenantStatus.INACTIVE);
