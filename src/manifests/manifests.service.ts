@@ -15,6 +15,7 @@ export type ManifestResult = {
   ingressHost?: string;
   namespace: string;
   resourceName: string;
+  serviceType: "ClusterIP" | "NodePort";
   serviceName: string;
   yaml: string;
   filePath?: string;
@@ -49,6 +50,233 @@ function buildNodeRedSettings(): string {
 };\n`;
 }
 
+function buildSeedFlowsScript(): string {
+  return `#!/bin/sh
+set -eu
+
+if [ ! -f /data/flows.json ]; then
+  cp /seed/flows.json /data/flows.json
+fi
+`;
+}
+
+function buildStarterFlows(tenant: TenantRef, namespace: string, serviceName: string): string {
+  const flows = [
+    {
+      id: "tab-welcome",
+      type: "tab",
+      label: "Welcome & Demo",
+      disabled: false,
+      info: "",
+    },
+    {
+      id: "welcome-comment",
+      type: "comment",
+      z: "tab-welcome",
+      name: "Welcome",
+      info: [
+        "This Node-RED workspace was provisioned automatically for this tenant.",
+        "",
+        "What to do next:",
+        "1. Click the button on the `Run starter demo` node.",
+        "2. Open the debug sidebar to inspect the payload.",
+        "3. Change the flow and click Deploy.",
+        "",
+        "Your flows are stored on the tenant PVC, so they survive pod restarts.",
+      ].join("\n"),
+      x: 250,
+      y: 80,
+      wires: [],
+    },
+    {
+      id: "tenant-metadata-comment",
+      type: "comment",
+      z: "tab-welcome",
+      name: "Tenant metadata",
+      info: [
+        `tenantId: ${tenant.id}`,
+        `tenantSlug: ${tenant.slug}`,
+        `namespace: ${namespace}`,
+        `serviceName: ${serviceName}`,
+      ].join("\n"),
+      x: 250,
+      y: 160,
+      wires: [],
+    },
+    {
+      id: "starter-demo-inject",
+      type: "inject",
+      z: "tab-welcome",
+      name: "Run starter demo",
+      props: [{ p: "payload" }, { p: "topic", vt: "str" }],
+      repeat: "",
+      crontab: "",
+      once: false,
+      onceDelay: 0.1,
+      topic: "starter-demo",
+      payload: "",
+      payloadType: "date",
+      x: 170,
+      y: 280,
+      wires: [["starter-demo-function"]],
+    },
+    {
+      id: "starter-demo-function",
+      type: "function",
+      z: "tab-welcome",
+      name: "Build starter payload",
+      func: `msg.payload = {
+  message: "Node-RED starter flow is ready",
+  tenantId: "${tenant.id}",
+  tenantSlug: "${tenant.slug}",
+  namespace: "${namespace}",
+  serviceName: "${serviceName}",
+  timestamp: new Date().toISOString()
+};
+return msg;`,
+      outputs: 1,
+      noerr: 0,
+      initialize: "",
+      finalize: "",
+      libs: [],
+      x: 430,
+      y: 280,
+      wires: [["starter-demo-debug"]],
+    },
+    {
+      id: "starter-demo-debug",
+      type: "debug",
+      z: "tab-welcome",
+      name: "Starter output",
+      active: true,
+      tosidebar: true,
+      console: false,
+      tostatus: false,
+      complete: "payload",
+      targetType: "msg",
+      statusVal: "",
+      statusType: "auto",
+      x: 690,
+      y: 280,
+      wires: [],
+    },
+    {
+      id: "tab-health",
+      type: "tab",
+      label: "Health",
+      disabled: false,
+      info: "",
+    },
+    {
+      id: "health-comment",
+      type: "comment",
+      z: "tab-health",
+      name: "Health endpoint",
+      info: [
+        "This flow exposes a read-only HTTP endpoint at `GET /tenant-health`.",
+        "Use it to verify that the tenant Node-RED runtime is alive without opening the editor.",
+      ].join("\n"),
+      x: 280,
+      y: 80,
+      wires: [],
+    },
+    {
+      id: "tenant-health-in",
+      type: "http in",
+      z: "tab-health",
+      name: "GET /tenant-health",
+      url: "/tenant-health",
+      method: "get",
+      upload: false,
+      swaggerDoc: "",
+      x: 170,
+      y: 220,
+      wires: [["tenant-health-function"]],
+    },
+    {
+      id: "tenant-health-function",
+      type: "function",
+      z: "tab-health",
+      name: "Build health response",
+      func: `msg.headers = { "content-type": "application/json" };
+msg.payload = {
+  status: "ok",
+  tenantId: "${tenant.id}",
+  tenantSlug: "${tenant.slug}",
+  namespace: "${namespace}",
+  serviceName: "${serviceName}"
+};
+return msg;`,
+      outputs: 1,
+      noerr: 0,
+      initialize: "",
+      finalize: "",
+      libs: [],
+      x: 440,
+      y: 220,
+      wires: [["tenant-health-response"]],
+    },
+    {
+      id: "tenant-health-response",
+      type: "http response",
+      z: "tab-health",
+      name: "Return JSON",
+      statusCode: "200",
+      headers: {},
+      x: 700,
+      y: 220,
+      wires: [],
+    },
+    {
+      id: "tab-errors",
+      type: "tab",
+      label: "Errors",
+      disabled: false,
+      info: "",
+    },
+    {
+      id: "errors-comment",
+      type: "comment",
+      z: "tab-errors",
+      name: "Error handling",
+      info: "Unhandled flow errors are sent to the debug sidebar here.",
+      x: 240,
+      y: 80,
+      wires: [],
+    },
+    {
+      id: "catch-errors",
+      type: "catch",
+      z: "tab-errors",
+      name: "Catch flow errors",
+      scope: null,
+      uncaught: false,
+      x: 180,
+      y: 200,
+      wires: [["debug-errors"]],
+    },
+    {
+      id: "debug-errors",
+      type: "debug",
+      z: "tab-errors",
+      name: "Flow errors",
+      active: true,
+      tosidebar: true,
+      console: false,
+      tostatus: true,
+      complete: "true",
+      targetType: "full",
+      statusVal: "error.message",
+      statusType: "msg",
+      x: 430,
+      y: 200,
+      wires: [],
+    },
+  ];
+
+  return JSON.stringify(flows, null, 2) + "\n";
+}
+
 @Injectable()
 export class ManifestsService {
   constructor(private readonly config: ConfigService) {}
@@ -77,7 +305,9 @@ export class ManifestsService {
     const baseDomain = this.config.get<string>("NODE_RED_BASE_DOMAIN");
     const ingressEnabled = this.config.get<boolean>("NODE_RED_ENABLE_INGRESS") ?? false;
     const ingressHost = ingressEnabled && baseDomain ? `${tenant.slug}.${baseDomain}` : undefined;
-    const serviceType = this.config.get<string>("NODE_RED_SERVICE_TYPE") ?? "ClusterIP";
+    const serviceType =
+      (this.config.get<string>("NODE_RED_SERVICE_TYPE") as "ClusterIP" | "NodePort" | undefined) ??
+      "ClusterIP";
     const labels = {
       app: "nodered",
       tenantId: tenant.id,
@@ -111,6 +341,8 @@ export class ManifestsService {
         labels,
       },
       data: {
+        "flows.json": buildStarterFlows(tenant, namespace, serviceName),
+        "seed-flows.sh": buildSeedFlowsScript(),
         "settings.js": buildNodeRedSettings(),
       },
     };
@@ -161,6 +393,23 @@ export class ManifestsService {
               runAsNonRoot: true,
               runAsUser: 1000,
             },
+            initContainers: [
+              {
+                name: "seed-flows",
+                image: nodeRedImage,
+                command: ["/bin/sh", "/seed/seed-flows.sh"],
+                volumeMounts: [
+                  {
+                    mountPath: "/data",
+                    name: "data",
+                  },
+                  {
+                    mountPath: "/seed",
+                    name: "runtime-config",
+                  },
+                ],
+              },
+            ],
             containers: [
               {
                 name: "nodered",
@@ -221,7 +470,7 @@ export class ManifestsService {
                   },
                   {
                     mountPath: "/data/settings.js",
-                    name: "settings",
+                    name: "runtime-config",
                     subPath: "settings.js",
                   },
                 ],
@@ -238,7 +487,7 @@ export class ManifestsService {
                 configMap: {
                   name: configMapName,
                 },
-                name: "settings",
+                name: "runtime-config",
               },
             ],
           },
@@ -327,6 +576,7 @@ export class ManifestsService {
         ingressHost,
         namespace,
         resourceName,
+        serviceType,
         serviceName,
         yaml: outputMode === "disk" ? "" : yaml,
       };
@@ -338,6 +588,7 @@ export class ManifestsService {
       ingressHost,
       namespace,
       resourceName,
+      serviceType,
       serviceName,
       yaml,
     };

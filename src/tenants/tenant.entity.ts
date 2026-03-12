@@ -54,6 +54,15 @@ export class TenantEntity {
   nodeRedIngressHost!: string | null;
 
   @Column({ type: "text", nullable: true })
+  nodeRedPublicHost!: string | null;
+
+  @Column({ type: "int", nullable: true })
+  nodeRedNodePort!: number | null;
+
+  @Column({ type: "text", nullable: true })
+  nodeRedServiceType!: string | null;
+
+  @Column({ type: "text", nullable: true })
   nodeRedServiceName!: string | null;
 
   @CreateDateColumn()

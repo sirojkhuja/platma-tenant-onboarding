@@ -45,6 +45,16 @@ function toUpstreamException(err: unknown): BadGatewayException {
   return new BadGatewayException({ message: "Keycloak request failed" });
 }
 
+function toEditorUrl(
+  ingressHost: string | null | undefined,
+  publicHost: string | null | undefined,
+  nodePort: number | null | undefined,
+): string | undefined {
+  if (ingressHost) return `http://${ingressHost}`;
+  if (publicHost && nodePort) return `http://${publicHost}:${nodePort}`;
+  return undefined;
+}
+
 @Injectable()
 export class TenantsService {
   constructor(
@@ -92,6 +102,7 @@ export class TenantsService {
       });
 
       const deployResult = await this.kubernetes.applyManifest(createManifest);
+      const runtimeAccess = await this.kubernetes.getRuntimeAccess(createManifest);
 
       await this.repo.update(tenant.id, {
         k8sNamespace: createManifest.namespace,
@@ -100,8 +111,11 @@ export class TenantsService {
         keycloakClientId: client.clientId,
         keycloakClientInternalId: client.internalId,
         nodeRedAdminUsername: nodeRedCredentials.username,
-        nodeRedIngressHost: createManifest.ingressHost ?? null,
+        nodeRedIngressHost: runtimeAccess.ingressHost ?? null,
+        nodeRedNodePort: runtimeAccess.nodePort ?? null,
+        nodeRedPublicHost: runtimeAccess.publicHost ?? null,
         nodeRedServiceName: createManifest.serviceName,
+        nodeRedServiceType: runtimeAccess.serviceType,
         status: TenantStatus.ACTIVE,
       });
 
@@ -124,11 +138,14 @@ export class TenantsService {
           adminUsername: nodeRedCredentials.username,
           applied: deployResult.applied,
           deploymentMode: deployResult.mode,
-          editorUrl: createManifest.editorUrl,
-          ingressHost: createManifest.ingressHost,
+          editorUrl: runtimeAccess.editorUrl,
+          ingressHost: runtimeAccess.ingressHost,
           namespace: createManifest.namespace,
+          nodePort: runtimeAccess.nodePort,
+          publicHost: runtimeAccess.publicHost,
           resourceName: createManifest.resourceName,
           serviceName: createManifest.serviceName,
+          serviceType: runtimeAccess.serviceType,
         },
       };
     } catch (err) {
@@ -209,17 +226,28 @@ export class TenantsService {
       nodeRed: {
         applied: deleteResult.applied,
         deploymentMode: deleteResult.mode,
-        editorUrl: deleteManifest.editorUrl,
-        ingressHost: deleteManifest.ingressHost,
+        editorUrl: toEditorUrl(
+          tenant.nodeRedIngressHost,
+          tenant.nodeRedPublicHost,
+          tenant.nodeRedNodePort,
+        ),
+        ingressHost: tenant.nodeRedIngressHost,
         namespace: deleteManifest.namespace,
+        nodePort: tenant.nodeRedNodePort,
+        publicHost: tenant.nodeRedPublicHost,
         resourceName: deleteManifest.resourceName,
         serviceName: deleteManifest.serviceName,
+        serviceType: tenant.nodeRedServiceType ?? deleteManifest.serviceType,
       },
     };
   }
 
   private toTenantView(tenant: TenantEntity) {
-    const editorUrl = tenant.nodeRedIngressHost ? `http://${tenant.nodeRedIngressHost}` : undefined;
+    const editorUrl = toEditorUrl(
+      tenant.nodeRedIngressHost,
+      tenant.nodeRedPublicHost,
+      tenant.nodeRedNodePort,
+    );
 
     return {
       adminEmail: tenant.adminEmail,
@@ -236,8 +264,11 @@ export class TenantsService {
         editorUrl,
         ingressHost: tenant.nodeRedIngressHost,
         namespace: tenant.k8sNamespace,
+        nodePort: tenant.nodeRedNodePort,
+        publicHost: tenant.nodeRedPublicHost,
         resourceName: tenant.k8sResourceName,
         serviceName: tenant.nodeRedServiceName,
+        serviceType: tenant.nodeRedServiceType ?? "ClusterIP",
       },
       slug: tenant.slug,
       status: tenant.status,

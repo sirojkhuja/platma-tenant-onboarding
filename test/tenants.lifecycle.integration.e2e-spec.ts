@@ -145,7 +145,9 @@ describe("tenants lifecycle (integration)", () => {
 
     expect(created.manifests?.createYaml).toContain("kind: Deployment");
     expect(created.manifests?.createYaml).toContain("kind: PersistentVolumeClaim");
+    expect(created.manifests?.createYaml).toContain("/tenant-health");
     expect(created.nodeRed?.deploymentMode).toBe("manifest");
+    expect(created.nodeRed?.serviceType).toBe("ClusterIP");
     expect(created.nodeRed?.adminPassword).toBeTruthy();
 
     const row = await repo.findById(tenantId);

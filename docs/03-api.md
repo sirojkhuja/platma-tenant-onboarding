@@ -33,6 +33,17 @@ Recommended headers:
     "clientId": "tenant-acme-corp-b4b1e8b6",
     "adminUsername": "admin@acme.example"
   },
+  "nodeRed": {
+    "adminUsername": "admin",
+    "deploymentMode": "apply",
+    "editorUrl": "http://192.168.32.3:32080",
+    "namespace": "default",
+    "nodePort": 32080,
+    "publicHost": "192.168.32.3",
+    "resourceName": "nodered-acme-corp-b4b1e8b6",
+    "serviceName": "nodered-acme-corp-b4b1e8b6",
+    "serviceType": "NodePort"
+  },
   "manifests": {
     "createYaml": "---\napiVersion: apps/v1\nkind: Deployment\n..."
   }
@@ -42,6 +53,7 @@ Recommended headers:
 Notes:
 
 - Do not return Keycloak client secrets in API responses.
+- `nodeRed.editorUrl` is stable only when the workload is exposed through `NodePort` or `Ingress`. `ClusterIP` services do not expose a direct browser URL by themselves.
 - If writing manifests to disk, you can include:
   - `manifests.createPath` alongside `createYaml`, or omit YAML and return only the path (but tests should validate something deterministically).
 

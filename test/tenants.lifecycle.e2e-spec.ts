@@ -49,8 +49,10 @@ describe("tenants lifecycle (e2e)", () => {
     expect(created.slug).toBe("acme-corp");
     expect(created.status).toBe("ACTIVE");
     expect(created.manifests?.createYaml).toContain("kind: Deployment");
+    expect(created.manifests?.createYaml).toContain("/tenant-health");
     expect(created.nodeRed?.namespace).toBe("default");
     expect(created.nodeRed?.serviceName).toContain("nodered-acme-corp-");
+    expect(created.nodeRed?.serviceType).toBe("ClusterIP");
     expect(created.nodeRed?.adminUsername).toBe("admin");
     expect(created.nodeRed?.adminPassword).toBeTruthy();
 
@@ -65,6 +67,7 @@ describe("tenants lifecycle (e2e)", () => {
     const fetched = getRes.json() as any;
     expect(fetched.nodeRed?.adminUsername).toBe("admin");
     expect(fetched.nodeRed?.serviceName).toBe(created.nodeRed.serviceName);
+    expect(fetched.nodeRed?.serviceType).toBe("ClusterIP");
 
     const deleteRes = await app.inject({ method: "DELETE", url: `/tenants/${tenantId}` });
     expect(deleteRes.statusCode).toBe(200);

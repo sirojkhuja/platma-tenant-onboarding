@@ -26,6 +26,7 @@ CREATE_RESPONSE="$(
 
 TENANT_ID="$(printf '%s' "${CREATE_RESPONSE}" | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).id")"
 SERVICE_NAME="$(printf '%s' "${CREATE_RESPONSE}" | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).nodeRed.serviceName")"
+EDITOR_URL="$(printf '%s' "${CREATE_RESPONSE}" | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).nodeRed.editorUrl || ''")"
 ADMIN_USERNAME="$(printf '%s' "${CREATE_RESPONSE}" | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).nodeRed.adminUsername")"
 ADMIN_PASSWORD="$(printf '%s' "${CREATE_RESPONSE}" | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).nodeRed.adminPassword")"
 
@@ -33,14 +34,19 @@ kubectl -n "${NAMESPACE}" get deployment "${SERVICE_NAME}" >/dev/null
 kubectl -n "${NAMESPACE}" get service "${SERVICE_NAME}" >/dev/null
 kubectl -n "${NAMESPACE}" get pvc "${SERVICE_NAME}-data" >/dev/null
 
-kubectl -n "${NAMESPACE}" port-forward "svc/${SERVICE_NAME}" "${PORT_FORWARD_PORT}:80" >/tmp/platma-port-forward.log 2>&1 &
-PORT_FORWARD_PID="$!"
-sleep 5
+if [[ -n "${EDITOR_URL}" ]]; then
+  NODE_RED_BASE_URL="${EDITOR_URL%/}"
+else
+  kubectl -n "${NAMESPACE}" port-forward "svc/${SERVICE_NAME}" "${PORT_FORWARD_PORT}:80" >/tmp/platma-port-forward.log 2>&1 &
+  PORT_FORWARD_PID="$!"
+  sleep 5
+  NODE_RED_BASE_URL="http://127.0.0.1:${PORT_FORWARD_PORT}"
+fi
 
-EDITOR_PAGE="$(curl -fsS "http://127.0.0.1:${PORT_FORWARD_PORT}/")"
+EDITOR_PAGE="$(curl -fsS "${NODE_RED_BASE_URL}/")"
 printf '%s' "${EDITOR_PAGE}" | grep -qi "Node-RED"
 
-FLOWS_STATUS="$(curl -s -o /tmp/platma-flows-response.txt -w '%{http_code}' "http://127.0.0.1:${PORT_FORWARD_PORT}/flows")"
+FLOWS_STATUS="$(curl -s -o /tmp/platma-flows-response.txt -w '%{http_code}' "${NODE_RED_BASE_URL}/flows")"
 if [[ "${FLOWS_STATUS}" != "401" ]]; then
   echo "Expected /flows to require authentication, got HTTP ${FLOWS_STATUS}."
   exit 1
@@ -64,5 +70,6 @@ fi
 echo "Runtime smoke test passed."
 echo "Tenant id: ${TENANT_ID}"
 echo "Node-RED service: ${SERVICE_NAME}"
+echo "Node-RED editor URL: ${NODE_RED_BASE_URL}"
 echo "Node-RED admin username: ${ADMIN_USERNAME}"
 echo "Node-RED admin password: ${ADMIN_PASSWORD}"

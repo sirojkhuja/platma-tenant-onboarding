@@ -36,6 +36,7 @@ describe("manifests", () => {
 
     expect(res.resourceName).toBe("nodered-acme-corp-b4b1e8b6");
     expect(res.serviceName).toBe("nodered-acme-corp-b4b1e8b6");
+    expect(res.serviceType).toBe("ClusterIP");
     expect(res.namespace).toBe("default");
     expect(res.yaml).toContain("kind: Secret");
     expect(res.yaml).toContain("kind: ConfigMap");
@@ -43,6 +44,23 @@ describe("manifests", () => {
     expect(res.yaml).toContain("kind: Deployment");
     expect(res.yaml).toContain("kind: Service");
     expect(res.yaml).toContain("name: nodered-acme-corp-b4b1e8b6");
+    expect(res.yaml).toContain("/tenant-health");
+    expect(res.yaml).toContain("seed-flows");
+
+    const configMap = res.documents.find((doc) => doc.kind === "ConfigMap") as any;
+    expect(configMap?.data?.["flows.json"]).toContain("Node-RED starter flow is ready");
+    expect(configMap?.data?.["flows.json"]).toContain("/tenant-health");
+    expect(configMap?.data?.["seed-flows.sh"]).toContain("cp /seed/flows.json /data/flows.json");
+
+    const deployment = res.documents.find((doc) => doc.kind === "Deployment") as any;
+    expect(deployment?.spec?.template?.spec?.initContainers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          command: ["/bin/sh", "/seed/seed-flows.sh"],
+          name: "seed-flows",
+        }),
+      ]),
+    );
 
     await moduleRef.close();
   });

@@ -32,7 +32,7 @@ Each tenant gets the following Kubernetes resources:
 - `Secret`
   Stores `NODE_RED_ADMIN_USERNAME` and the bcrypt-hashed admin password.
 - `ConfigMap`
-  Provides a generated `settings.js` for Node-RED.
+  Provides a generated `settings.js`, starter `flows.json`, and a first-boot seed script.
 - `PersistentVolumeClaim`
   Mounts `/data` so flows survive pod restarts.
 - `Deployment`
@@ -48,6 +48,7 @@ Compared with the original exercise-only manifest generator, the runtime mode ad
 
 - persistent data storage
 - editor credentials
+- first-boot starter flow seeding
 - readiness and liveness probes
 - resource requests and limits
 - optional ingress
@@ -61,6 +62,7 @@ Compared with the original exercise-only manifest generator, the runtime mode ad
 - `K8S_DEPLOY_MODE=manifest|apply`
 - `K8S_KUBECONFIG_PATH`
 - `K8S_CREATE_NAMESPACE=true|false`
+- `K8S_PUBLIC_HOST`
 - `K8S_ROLLOUT_TIMEOUT_MS`
 - `K8S_ROLLOUT_POLL_INTERVAL_MS`
 - `K8S_NAMESPACE`
@@ -102,6 +104,7 @@ npm run dev:k8s:up
 K8S_DEPLOY_MODE=apply
 K8S_KUBECONFIG_PATH=$HOME/.kube/config
 NODE_RED_PASSWORD_SEED=replace-this-with-a-real-secret
+NODE_RED_SERVICE_TYPE=NodePort
 ```
 
 4. Start the API:
@@ -124,6 +127,23 @@ The smoke script validates:
 - `/flows` requires authentication
 - tenant deletion removes the Deployment
 
+When `NODE_RED_SERVICE_TYPE=NodePort`, the API resolves a stable `nodeRed.editorUrl` after rollout by reading the live Service `nodePort` and a reachable node address from Kubernetes. If you need a specific hostname or IP in that URL, set `K8S_PUBLIC_HOST`.
+
+## Starter workspace
+
+New tenant workspaces are no longer empty on first login.
+
+The system seeds a starter `flows.json` that includes:
+
+- `Welcome & Demo`
+  A safe inject -> function -> debug flow that proves the editor is working.
+- `Health`
+  A read-only `GET /tenant-health` endpoint that returns tenant runtime metadata.
+- `Errors`
+  A `catch` -> `debug` flow so unhandled node errors are visible immediately.
+
+The seed is copied by an init container only when `/data/flows.json` does not already exist. This matters because the PVC is persistent: tenant edits must survive restarts and later deploys.
+
 ## API additions
 
 The system now has:
@@ -134,6 +154,7 @@ That endpoint returns the persisted runtime metadata, including:
 
 - Kubernetes namespace
 - Kubernetes resource name
+- Node-RED node port and public host, when using `NodePort`
 - Node-RED service name
 - Node-RED ingress host, when configured
 

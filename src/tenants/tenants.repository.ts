@@ -21,6 +21,9 @@ export type UpdateTenantRow = Partial<{
   keycloakAdminUserId: string | null;
   nodeRedAdminUsername: string | null;
   nodeRedIngressHost: string | null;
+  nodeRedPublicHost: string | null;
+  nodeRedNodePort: number | null;
+  nodeRedServiceType: string | null;
   nodeRedServiceName: string | null;
 }>;
 

@@ -3,6 +3,7 @@ import type {
   CoreV1Api,
   KubernetesObject,
   KubernetesObjectApi,
+  V1Node,
   V1Namespace,
 } from "@kubernetes/client-node";
 import { Injectable, InternalServerErrorException, Logger } from "@nestjs/common";
@@ -34,6 +35,14 @@ function isConflictError(err: unknown): boolean {
 export type KubernetesApplyResult = {
   applied: boolean;
   mode: "manifest" | "apply";
+};
+
+export type NodeRedRuntimeAccess = {
+  editorUrl?: string;
+  ingressHost?: string;
+  nodePort?: number;
+  publicHost?: string;
+  serviceType: "ClusterIP" | "NodePort";
 };
 
 @Injectable()
@@ -79,6 +88,44 @@ export class KubernetesDeploymentService {
 
     await this.waitForDeploymentDeleted(manifest.namespace, manifest.resourceName);
     return { applied: true, mode: "apply" };
+  }
+
+  async getRuntimeAccess(manifest: ManifestResult): Promise<NodeRedRuntimeAccess> {
+    if (manifest.ingressHost) {
+      return {
+        editorUrl: manifest.editorUrl,
+        ingressHost: manifest.ingressHost,
+        serviceType: manifest.serviceType,
+      };
+    }
+
+    if (manifest.serviceType !== "NodePort") {
+      return { serviceType: manifest.serviceType };
+    }
+
+    if (!this.isApplyModeEnabled()) {
+      return { serviceType: manifest.serviceType };
+    }
+
+    const { coreApi } = await this.getClients();
+    const service = await coreApi.readNamespacedService({
+      name: manifest.serviceName,
+      namespace: manifest.namespace,
+    });
+    const nodePort = service.spec?.ports?.find((port) => port.name === "http")?.nodePort;
+
+    if (!nodePort) {
+      return { serviceType: manifest.serviceType };
+    }
+
+    const publicHost = await this.getPublicHost(coreApi);
+
+    return {
+      editorUrl: publicHost ? `http://${publicHost}:${nodePort}` : undefined,
+      nodePort,
+      publicHost,
+      serviceType: manifest.serviceType,
+    };
   }
 
   private isApplyModeEnabled(): boolean {
@@ -219,6 +266,25 @@ export class KubernetesDeploymentService {
       namespace,
       resourceName: name,
     });
+  }
+
+  private async getPublicHost(coreApi: CoreV1Api): Promise<string | undefined> {
+    const configuredPublicHost = this.config.get<string>("K8S_PUBLIC_HOST");
+    if (configuredPublicHost) return configuredPublicHost;
+
+    const nodes = await coreApi.listNode();
+    return this.selectNodeAddress(nodes.items);
+  }
+
+  private selectNodeAddress(nodes: V1Node[]): string | undefined {
+    for (const addressType of ["ExternalIP", "InternalIP"] as const) {
+      for (const node of nodes) {
+        const address = node.status?.addresses?.find((candidate) => candidate.type === addressType);
+        if (address?.address) return address.address;
+      }
+    }
+
+    return undefined;
   }
 
   private toObjectRef(document: ManifestDocument) {

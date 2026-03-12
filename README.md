@@ -71,6 +71,7 @@ Set at least:
 K8S_DEPLOY_MODE=apply
 K8S_KUBECONFIG_PATH=$HOME/.kube/config
 NODE_RED_PASSWORD_SEED=replace-this-with-a-real-secret
+NODE_RED_SERVICE_TYPE=NodePort
 ```
 
 4. Start the API:
@@ -87,6 +88,16 @@ PATH="$HOME/.local/bin:$PATH" npm run smoke:runtime
 ```
 
 The smoke script creates a tenant, waits for Node-RED to roll out, verifies the editor page and protected `/flows` endpoint, deletes the tenant, and confirms cleanup.
+
+In `NodePort` mode, the create response includes `nodeRed.editorUrl`, for example `http://192.168.32.3:32080/`. That URL stays up while the cluster and tenant service stay up, unlike `kubectl port-forward`.
+
+After first login, Node-RED starts with a seeded starter workspace:
+
+- `Welcome & Demo`: click the inject node and inspect the debug sidebar
+- `Health`: exposes `GET /tenant-health`
+- `Errors`: catches unhandled flow errors into the debug sidebar
+
+The starter `flows.json` is only copied on first boot. After that, tenant edits stay on the PVC and are not overwritten by later deploys.
 
 ## Tests
 

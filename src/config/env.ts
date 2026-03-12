@@ -45,6 +45,7 @@ export const envSchema = z
     K8S_DEPLOY_MODE: z.enum(["manifest", "apply"]).default("manifest"),
     K8S_KUBECONFIG_PATH: z.string().optional(),
     K8S_CREATE_NAMESPACE: zBoolish.default(true),
+    K8S_PUBLIC_HOST: z.string().optional(),
     K8S_ROLLOUT_TIMEOUT_MS: z.coerce.number().int().positive().default(180000),
     K8S_ROLLOUT_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(2000),
 
